@@ -31,12 +31,12 @@ class ToolNode:
             "description": self.description,
             "parameters": self.parameters
         }
-
+logger = logging.getLogger(__name__)
 class NodeFramework:
     """Framework to manage nodes with parameter discovery and tool support."""
     
     def __init__(self, nodes_dir='.', config_file=None):
-        self.logger = logging.getLogger(__name__)
+        
         self.nodes = {}  # {name: node_class}
         self.tools = {}  # {name: ToolNode}
         self.config = self._load_config(config_file)
@@ -48,34 +48,34 @@ class NodeFramework:
             try:
                 with open(config_file, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f) or {}
-                self.logger.info(f"Loaded config from {config_file}")
+                logger.info(f"Loaded config from {config_file}")
                 return config
             except yaml.YAMLError as e:
-                self.logger.error(f"Failed to load config file {config_file}: {e}")
+                logger.error(f"Failed to load config file {config_file}: {e}")
                 return {}
-        self.logger.warning(f"No config file provided or {config_file} not found")
+        logger.warning(f"No config file provided or {config_file} not found")
         return {}
     
     def _discover_nodes(self, nodes_dir):
         nodes_dir = Path(nodes_dir).resolve()
-        self.logger.info(f"Scanning directory {nodes_dir} for nodes")
+        logger.info(f"Scanning directory {nodes_dir} for nodes")
         if not nodes_dir.exists():
-            self.logger.error(f"Directory {nodes_dir} does not exist")
+            logger.error(f"Directory {nodes_dir} does not exist")
             return
         
         found_files = list(nodes_dir.glob('*.py'))
         if not found_files:
-            self.logger.warning(f"No .py files found in {nodes_dir}")
+            logger.warning(f"No .py files found in {nodes_dir}")
         
         for file in found_files:
             if file.stem in ['base_node', 'node_framework']:
-                self.logger.debug(f"Skipping file {file}")
+                logger.debug(f"Skipping file {file}")
                 continue
-            self.logger.debug(f"Processing file {file}")
+            logger.debug(f"Processing file {file}")
             try:
                 spec = importlib.util.spec_from_file_location(file.stem, file)
                 if spec is None:
-                    self.logger.error(f"Failed to create spec for {file}")
+                    logger.error(f"Failed to create spec for {file}")
                     continue
                 module = importlib.util.module_from_spec(spec)
                 sys.modules[file.stem] = module
@@ -94,12 +94,12 @@ class NodeFramework:
                             description=description,
                             parameters=parameters
                         )
-                        self.logger.info(f"Registered node and tool: {name} from {file}")
+                        logger.info(f"Registered node and tool: {name} from {file}")
                         found_node = True
                 if not found_node:
-                    self.logger.warning(f"No valid ActionNode subclasses found in {file}")
+                    logger.warning(f"No valid ActionNode subclasses found in {file}")
             except Exception as e:
-                self.logger.error(f"Failed to load node from {file}: {e}")
+                logger.error(f"Failed to load node from {file}: {e}")
         
     def get_node(self, name, config=None):
         cls = self.nodes.get(name)
@@ -110,7 +110,7 @@ class NodeFramework:
         return cls(node_config)
     
     def call_node(self, name, *args, **kwargs):
-        self.logger.info(f"Calling node {name} with args={args}, kwargs={kwargs}")
+        logger.info(f"Calling node {name} with args={args}, kwargs={kwargs}")
         node = self.get_node(name)
         return node(*args, **kwargs)
     
@@ -159,9 +159,9 @@ class NodeFramework:
                 if "data" in param_names and "data" not in params:
                     params["data"] = result
 
-            self.logger.info(f"Running node '{name}' with params: {params}")
+            logger.info(f"Running node '{name}' with params: {params}")
             result = node.run(**params)
-            self.logger.info(f"Output from '{name}': {result}")
+            logger.info(f"Output from '{name}': {result}")
 
         return result
 
@@ -213,10 +213,10 @@ Examples:
     chain_parser.add_argument("--calendar_id", type=str, default="primary", help="Google Calendar ID (for eventcreator_to_db)")
 
     args, unknown_args = parser.parse_known_args()
-    self.logger.info(f"sys.argv: {sys.argv}")
-    self.logger.info(f"Parsed args: {vars(args)}, Unknown args: {unknown_args}")
+    logger.info(f"sys.argv: {sys.argv}")
+    logger.info(f"Parsed args: {vars(args)}, Unknown args: {unknown_args}")
     # orchestron/api.py
-    from .node_framework import NodeFramework
+    #from .node_framework import NodeFramework
 
     _framework = NodeFramework(nodes_dir="action_nodes", config_file="config.yaml")
 
@@ -256,7 +256,7 @@ Examples:
         return result
 
     if not args.command:
-        self.logger.error("No command provided. Use 'list', 'run', or 'chain'.")
+        logger.error("No command provided. Use 'list', 'run', or 'chain'.")
         parser.print_help()
         sys.exit(1)
 
@@ -280,7 +280,7 @@ Examples:
 
     if args.command == "run":
         if args.node_name not in framework.nodes:
-            self.logger.error(f"Node '{args.node_name}' not found. Use 'list' to see available nodes.")
+            logger.error(f"Node '{args.node_name}' not found. Use 'list' to see available nodes.")
             sys.exit(1)
         
         # Get node schema
@@ -305,7 +305,7 @@ Examples:
         try:
             node_args = node_parser.parse_args(unknown_args)
         except SystemExit:
-            self.logger.error(f"Invalid arguments for node '{args.node_name}'. Required parameters: {required}")
+            logger.error(f"Invalid arguments for node '{args.node_name}'. Required parameters: {required}")
             node_parser.print_help()
             sys.exit(1)
 
@@ -319,17 +319,17 @@ Examples:
                 "subject": "Debug Test",
                 "body": "Debug email body"
             }
-            self.logger.warning(f"Debug mode: Using default args for {args.node_name}: {kwargs}")
+            logger.warning(f"Debug mode: Using default args for {args.node_name}: {kwargs}")
         elif is_debug and not kwargs and args.node_name == "emailgetter":
             kwargs = {"max_emails": 3}
-            self.logger.warning(f"Debug mode: Using default args for {args.node_name}: {kwargs}")
+            logger.warning(f"Debug mode: Using default args for {args.node_name}: {kwargs}")
         elif is_debug and not kwargs and args.node_name == "youtubetranscript":
             kwargs = {
                 "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "language": "en",
                 "summary_sentences": 3
             }
-            self.logger.warning(f"Debug mode: Using default args for {args.node_name}: {kwargs}")
+            logger.warning(f"Debug mode: Using default args for {args.node_name}: {kwargs}")
         elif is_debug and not kwargs and args.node_name == "eventcreator":
             kwargs = {
                 "title": "Test Event",
@@ -338,12 +338,12 @@ Examples:
                 "description": "Debug event description",
                 "calendar_id": "primary"
             }
-            self.logger.warning(f"Debug mode: Using default args for {args.node_name}: {kwargs}")
+            logger.warning(f"Debug mode: Using default args for {args.node_name}: {kwargs}")
 
         # Validate required parameters
         missing = [param for param in required if param not in kwargs]
         if missing:
-            self.logger.error(f"Missing required parameters for {args.node_name}: {missing}")
+            logger.error(f"Missing required parameters for {args.node_name}: {missing}")
             node_parser.print_help()
             sys.exit(1)
 
@@ -352,7 +352,7 @@ Examples:
             result = framework.call_node(args.node_name, **kwargs)
             print(f"Result: {json.dumps(result, indent=2, ensure_ascii=False)}")
         except Exception as e:
-            self.logger.error(f"Failed to run node {args.node_name}: {e}")
+            logger.error(f"Failed to run node {args.node_name}: {e}")
             sys.exit(1)
 
     if args.command == "chain":
@@ -362,7 +362,7 @@ Examples:
                 result = framework.call_node("dbwriter", data=emails, data_type="email")
                 print(f"Result: {json.dumps(result, indent=2, ensure_ascii=False)}")
             except Exception as e:
-                self.logger.error(f"Failed to run chain '{args.chain_name}': {e}")
+                logger.error(f"Failed to run chain '{args.chain_name}': {e}")
                 sys.exit(1)
         elif args.chain_name == "youtubetranscript_to_db":
             try:
@@ -379,7 +379,7 @@ Examples:
                 result = framework.call_node("dbwriter", data=transcript_data, data_type="transcript")
                 print(f"Result: {json.dumps(result, indent=2, ensure_ascii=False)}")
             except Exception as e:
-                self.logger.error(f"Failed to run chain '{args.chain_name}': {e}")
+                logger.error(f"Failed to run chain '{args.chain_name}': {e}")
                 sys.exit(1)
         elif args.chain_name == "eventcreator_to_db":
             try:
@@ -397,9 +397,9 @@ Examples:
                 result = framework.call_node("dbwriter", data=event_data_for_db, data_type="event")
                 print(f"Result: {json.dumps(result, indent=2, ensure_ascii=False)}")
             except Exception as e:
-                self.logger.error(f"Failed to run chain '{args.chain_name}': {e}")
+                logger.error(f"Failed to run chain '{args.chain_name}': {e}")
                 sys.exit(1)
         else:
-            self.logger.error(f"Unknown chain '{args.chain_name}'. Supported: emailgetter_to_db, youtubetranscript_to_db, eventcreator_to_db")
+            logger.error(f"Unknown chain '{args.chain_name}'. Supported: emailgetter_to_db, youtubetranscript_to_db, eventcreator_to_db")
             parser.print_help()
             sys.exit(1)

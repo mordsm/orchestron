@@ -45,39 +45,21 @@ class CalendarEvent(Base):
     description = Column(Text, nullable=True)
     calendar_id = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-
 class DBWriterNode(ActionNode):
-    """Node to write data to a database. Config: {'db_url'}."""
-    
-    """  @classmethod
-    def get_parameters(cls):
-        return {
-            "parameters": [
-                {
-                    "name": "data",
-                    "type": "dict",
-                    "description": "Data to write (email: {'from', 'subject', 'body'}, transcript: {'transcript', 'summary', 'keypoints', 'video_url'}, or event: {'event_id', 'title', 'start_time', 'end_time', 'description', 'calendar_id'})"
-                },
-                {
-                    "name": "data_type",
-                    "type": "string",
-                    "description": "Type of data ('email', 'transcript', or 'event')",
-                    "default": "email"
-                }
-            ],
-            "required": ["data", "data_type"]
-        } """
-    
     @classmethod
     def get_parameters(cls):
         return {
             "parameters": [
-                {"name": "data", "type": "dict", "description": "Data to insert"},
-                {"name": "table_name", "type": "string", "description": "Database table name"}
+                {"name": "data", "type": "object", "description": "Data to insert"},
+                {"name": "data_type", "type": "string", "description": "Type of data"},
+                {
+                    "name": "table_name",
+                    "type": "string",
+                    "description": "DB table name (optional, falls back to config.params.table)",
+                },
             ],
-            "required": ["data", "table_name"]
+            "required": ["data", "data_type"],  # IMPORTANT: remove "table_name" from here
         }
-
 
 
     logger = logging.getLogger(__name__)
@@ -122,9 +104,15 @@ class DBWriterNode(ActionNode):
 
 
 
-
    
     def run(self, data: Dict, table_name: str):
+         # derive table name from explicit param or node config
+        table_name = table_name or self.config.get("table")
+
+        if not table_name:
+            raise ValueError("DBWriterNode: table_name not provided and no 'table' in config")
+
+        self.logger.info(f"Writing {data_type} data into table '{table_name}'")
         # ✅ Make sure validation sees both parameters
         self.validate(data=data, table_name=table_name)
 
